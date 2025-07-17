@@ -18,6 +18,11 @@ import environ
 env = environ.Env()
 environ.Env.read_env()
 
+MIDDLEWARE = [
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # 👈 Add this near the top
+    ...
+]
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 

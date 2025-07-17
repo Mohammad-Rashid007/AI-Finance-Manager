@@ -9,3 +9,5 @@ services:
         value: finance_manager.settings
       - key: SECRET_KEY
         generateValue: true
+
+staticPublishPath: staticfiles
