@@ -3,9 +3,9 @@ services:
     name: AI-Finance-Manager
     runtime: python
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn ai_finance_manager.wsgi:application"
+    startCommand: "gunicorn finance_manager.wsgi:application"
     envVars:
       - key: DJANGO_SETTINGS_MODULE
-        value: ai finance manager.settings
+        value: finance_manager.settings
       - key: SECRET_KEY
         generateValue: true
