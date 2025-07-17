@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}Edit Profile{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Edit Profile</h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <!-- Profile Picture Preview -->
+                            <div class="col-md-4 text-center mb-4">
+                                <div class="profile-picture-container">
+                                    {% if form.instance.profile_picture %}
+                                        <img src="{{ form.instance.profile_picture.url }}" alt="Profile Picture" class="img-fluid rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                                    {% else %}
+                                        <img src="{% static 'images/default-profile.png' %}" alt="Default Profile" class="img-fluid rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                                    {% endif %}
+                                </div>
+                                <!-- Display Username -->
+                                <h5 class="mb-1">{{ profile.user.first_name }} {{ profile.user.last_name }}</h5>
+                                <p class="text-muted">@{{ profile.user.username }}</p>
+                                <!-- File input for profile picture -->
+                                {{ form.profile_picture|as_crispy_field }}
+                            </div>
+
+                            <!-- Form Fields -->
+                            <div class="col-md-8">
+                                <!-- Account Information -->
+                                <h5 class="mb-3">Account Information</h5>
+                                <div class="mb-3">
+                                    <p class="text-muted small">Username: <strong>{{ profile.user.username }}</strong> (Cannot be changed)</p>
+                                </div>
+                                
+                                <!-- Personal Information -->
+                                <h5 class="mb-3 mt-4">Personal Information</h5>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        {{ form.first_name|as_crispy_field }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        {{ form.last_name|as_crispy_field }}
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        {{ form.email|as_crispy_field }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        {{ form.phone|as_crispy_field }}
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        {{ form.birth_date|as_crispy_field }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        {{ form.default_currency|as_crispy_field }}
+                                    </div>
+                                </div>
+                                
+                                <!-- Address -->
+                                <h5 class="mb-3 mt-4">Address</h5>
+                                {{ form.address|as_crispy_field }}
+                                
+                                <!-- AI Settings -->
+                                <h5 class="mb-3 mt-4">AI Features</h5>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        {{ form.enable_ai_insights|as_crispy_field }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        {{ form.enable_ai_categorization|as_crispy_field }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'financial:user_profile' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Profile
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Preview profile picture before upload
+    const profilePictureInput = document.querySelector('input[type="file"]');
+    if (profilePictureInput) {
+        profilePictureInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.querySelector('.profile-picture-container img');
+                    if (preview) {
+                        preview.src = e.target.result;
+                    }
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    // Form validation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(event) {
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+    });
+});
+</script>
+{% endblock %}
+{% endblock %} 

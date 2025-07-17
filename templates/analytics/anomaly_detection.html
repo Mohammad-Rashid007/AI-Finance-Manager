@@ -1,0 +1,511 @@
+{% extends 'base.html' %}
+
+{% block title %}Anomaly Detection - AI Finance Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">Anomaly Detection</h1>
+    <div>
+        <form class="form-inline" method="get">
+            <div class="form-group mr-2">
+                <select name="status" class="form-control">
+                    <option value="all" {% if status == 'all' %}selected{% endif %}>All Anomalies</option>
+                    <option value="new" {% if status == 'new' %}selected{% endif %}>New</option>
+                    <option value="reviewed" {% if status == 'reviewed' %}selected{% endif %}>Reviewed</option>
+                </select>
+            </div>
+            <div class="form-group mr-2">
+                <select name="timeframe" class="form-control">
+                    <option value="30" {% if timeframe == 30 %}selected{% endif %}>Last 30 Days</option>
+                    <option value="90" {% if timeframe == 90 %}selected{% endif %}>Last 3 Months</option>
+                    <option value="180" {% if timeframe == 180 %}selected{% endif %}>Last 6 Months</option>
+                    <option value="365" {% if timeframe == 365 %}selected{% endif %}>Last Year</option>
+                    <option value="all" {% if timeframe == 'all' %}selected{% endif %}>All Time</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Apply Filters</button>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-purple text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-robot mr-2"></i> About Anomaly Detection</h5>
+            <span class="badge badge-light">Updated {{ last_analysis|date:"F j, g:i a" }}</span>
+        </div>
+    </div>
+    <div class="card-body">
+        <p>
+            Our AI-powered anomaly detection system analyzes your transaction patterns to identify unusual activity that might 
+            indicate errors, fraud, or unexpected changes in your spending habits.
+        </p>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card text-center mb-3">
+                    <div class="card-body">
+                        <i class="fas fa-chart-line fa-2x text-primary mb-3"></i>
+                        <h5>Pattern Recognition</h5>
+                        <p class="small text-muted">
+                            Identifies transactions that deviate from your normal spending patterns
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center mb-3">
+                    <div class="card-body">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning mb-3"></i>
+                        <h5>Fraud Protection</h5>
+                        <p class="small text-muted">
+                            Flags potentially fraudulent transactions based on unusual amounts or merchants
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center mb-3">
+                    <div class="card-body">
+                        <i class="fas fa-brain fa-2x text-info mb-3"></i>
+                        <h5>Continuous Learning</h5>
+                        <p class="small text-muted">
+                            Improves detection accuracy over time as it learns your financial behavior
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if anomalies %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">Detected Anomalies</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Transaction</th>
+                        <th>Category</th>
+                        <th>Amount</th>
+                        <th>Anomaly Type</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for anomaly in anomalies %}
+                    <tr {% if anomaly.status == 'reviewed' %}class="text-muted"{% endif %}>
+                        <td>{{ anomaly.transaction.date|date:"M d, Y" }}</td>
+                        <td>
+                            <a href="{% url 'financial:transaction_detail' anomaly.transaction.id %}">
+                                {{ anomaly.transaction.description }}
+                            </a>
+                        </td>
+                        <td>{{ anomaly.transaction.category.name }}</td>
+                        <td class="{% if anomaly.anomaly_type == 'amount' %}text-danger{% endif %}">
+                            ₹{{ anomaly.transaction.amount|floatformat:2 }}
+                        </td>
+                        <td>
+                            {% if anomaly.anomaly_type == 'amount' %}
+                                <span class="badge badge-danger">Unusual Amount</span>
+                            {% elif anomaly.anomaly_type == 'frequency' %}
+                                <span class="badge badge-warning">Unusual Frequency</span>
+                            {% elif anomaly.anomaly_type == 'merchant' %}
+                                <span class="badge badge-info">New Merchant</span>
+                            {% elif anomaly.anomaly_type == 'category' %}
+                                <span class="badge badge-primary">Category Shift</span>
+                            {% elif anomaly.anomaly_type == 'location' %}
+                                <span class="badge badge-secondary">Unusual Location</span>
+                            {% else %}
+                                <span class="badge badge-dark">Other</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ anomaly.reason }}</td>
+                        <td>
+                            {% if anomaly.status == 'new' %}
+                                <span class="badge badge-warning">New</span>
+                            {% else %}
+                                <span class="badge badge-secondary">Reviewed</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'financial:transaction_detail' anomaly.transaction.id %}" 
+                                   class="btn btn-outline-primary" title="View Transaction">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if anomaly.status == 'new' %}
+                                <button class="btn btn-outline-success" title="Mark as Reviewed"
+                                        onclick="markAsReviewed('{{ anomaly.id }}')">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                {% endif %}
+                                <button class="btn btn-outline-secondary" title="Ignore Future Similar"
+                                        onclick="ignoreSimilar('{{ anomaly.id }}')">
+                                    <i class="fas fa-ban"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav aria-label="Pagination" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="First">
+                        <span aria-hidden="true">&laquo;&laquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }} <span class="sr-only">(current)</span></span>
+                        </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Last">
+                        <span aria-hidden="true">&raquo;&raquo;</span>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Anomaly Statistics -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Anomaly Types</h5>
+            </div>
+            <div class="card-body">
+                <div style="height: 300px;">
+                    <canvas id="anomalyTypesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Anomalies by Month</h5>
+            </div>
+            <div class="card-body">
+                <div style="height: 300px;">
+                    <canvas id="anomaliesByMonthChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="card shadow-sm">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+        <h3>No Anomalies Detected</h3>
+        <p class="text-muted mb-4">
+            We haven't detected any unusual transactions in your account for the selected time period.
+            This is a good sign that your spending patterns are consistent and there are no potential issues.
+        </p>
+        <p class="text-muted">
+            Our AI algorithm continuously analyzes your transaction patterns and will notify you 
+            if any unusual activity is detected in the future.
+        </p>
+    </div>
+</div>
+{% endif %}
+
+<!-- Settings Card -->
+<div class="card shadow-sm mt-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">Anomaly Detection Settings</h5>
+    </div>
+    <div class="card-body">
+        <form id="anomalySettingsForm" method="post" action="{% url 'analytics:update_anomaly_settings' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="sensitivity">Detection Sensitivity</label>
+                <select class="form-control" id="sensitivity" name="sensitivity">
+                    <option value="0.5">Low (Fewer Alerts)</option>
+                    <option value="1.0" selected>Medium (Default)</option>
+                    <option value="1.5">High (More Alerts)</option>
+                </select>
+                <small class="form-text text-muted">Adjust how sensitive the system is to detecting anomalies.</small>
+            </div>
+            <div class="form-group">
+                <label for="minAmount">Minimum Amount Threshold</label>
+                <input type="number" class="form-control" id="minAmount" name="min_amount" value="100" min="0">
+                <small class="form-text text-muted">Transactions below this amount will be ignored for anomaly detection.</small>
+            </div>
+            <div class="form-group">
+                <div class="custom-control custom-switch">
+                    <input type="checkbox" class="custom-control-input" id="enableNotifications" name="enable_notifications" checked>
+                    <label class="custom-control-label" for="enableNotifications">Enable Email Notifications</label>
+                </div>
+                <small class="form-text text-muted">Receive email notifications when new anomalies are detected.</small>
+            </div>
+            <button type="submit" class="btn btn-primary">Save Settings</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if anomalies %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+<script>
+    // Handle settings form submission
+    document.getElementById('anomalySettingsForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const csrftoken = getCookie('csrftoken');
+        
+        fetch(this.action, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Success', data.message, 'success');
+            } else {
+                showToast('Error', data.error || 'Failed to update settings', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error', 'An unexpected error occurred', 'error');
+        });
+    });
+    
+    // Function to mark an anomaly as reviewed
+    function markAsReviewed(anomalyId) {
+        if (!anomalyId) return;
+        
+        // Create form data
+        const formData = new FormData();
+        formData.append('anomaly_id', anomalyId);
+        
+        // Add CSRF token from cookie
+        const csrftoken = getCookie('csrftoken');
+        
+        // Send AJAX request
+        fetch('{% url "analytics:mark_anomaly_reviewed" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                showToast('Success', 'Anomaly marked as reviewed', 'success');
+                // Reload the page after a short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                // Show error message
+                showToast('Error', data.error || 'Failed to mark anomaly as reviewed', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error', 'An unexpected error occurred', 'error');
+        });
+    }
+    
+    // Function to ignore similar anomalies
+    function ignoreSimilar(anomalyId) {
+        if (!anomalyId) return;
+        
+        if (!confirm('Are you sure you want to ignore all similar anomalies? This will mark them all as reviewed.')) {
+            return;
+        }
+        
+        // Create form data
+        const formData = new FormData();
+        formData.append('anomaly_id', anomalyId);
+        
+        // Add CSRF token from cookie
+        const csrftoken = getCookie('csrftoken');
+        
+        // Send AJAX request
+        fetch('{% url "analytics:ignore_similar_anomalies" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                showToast('Success', data.message || 'Similar anomalies ignored', 'success');
+                // Reload the page after a short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                // Show error message
+                showToast('Error', data.error || 'Failed to ignore similar anomalies', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error', 'An unexpected error occurred', 'error');
+        });
+    }
+    
+    // Helper function to get CSRF token from cookie
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // Function to show toast/notification
+    function showToast(title, message, type) {
+        // Check if we have a notification system available
+        if (typeof Toastify === 'function') {
+            Toastify({
+                text: message,
+                duration: 3000,
+                gravity: "top",
+                position: "right",
+                backgroundColor: type === 'success' ? "#28a745" : "#dc3545"
+            }).showToast();
+        } else {
+            // Fallback to alert
+            alert(`${title}: ${message}`);
+        }
+    }
+    
+    // Chart initialization for anomaly statistics
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize anomaly type chart if element exists
+        const typesChartEl = document.getElementById('anomalyTypesChart');
+        if (typesChartEl) {
+            // Parse the Django-rendered data as JSON
+            const typesLabels = JSON.parse('{{ anomaly_stats.types.labels|safe }}');
+            const typesData = JSON.parse('{{ anomaly_stats.types.data|safe }}');
+            
+            const typesChart = new Chart(typesChartEl, {
+                type: 'pie',
+                data: {
+                    labels: typesLabels,
+                    datasets: [{
+                        data: typesData,
+                        backgroundColor: [
+                            '#dc3545', // red
+                            '#fd7e14', // orange
+                            '#ffc107', // yellow
+                            '#28a745', // green
+                            '#17a2b8', // teal
+                            '#6f42c1'  // purple
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            });
+        }
+        
+        // Initialize monthly anomaly chart if element exists
+        const monthlyChartEl = document.getElementById('anomaliesByMonthChart');
+        if (monthlyChartEl) {
+            // Parse the Django-rendered data as JSON
+            const monthlyLabels = JSON.parse('{{ anomaly_stats.monthly.labels|safe }}');
+            const monthlyData = JSON.parse('{{ anomaly_stats.monthly.data|safe }}');
+            
+            const monthlyChart = new Chart(monthlyChartEl, {
+                type: 'line',
+                data: {
+                    labels: monthlyLabels,
+                    datasets: [{
+                        label: 'Anomalies',
+                        data: monthlyData,
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        borderColor: 'rgba(220, 53, 69, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(220, 53, 69, 1)',
+                        pointRadius: 4,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        yAxes: [{
+                            ticks: {
+                                beginAtZero: true,
+                                precision: 0
+                            }
+                        }]
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endif %}
+{% endblock %} 

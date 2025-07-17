@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}Spending Predictions & AI Savings Suggestions{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Spending Predictions & AI Savings Suggestions</h1>
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Future Spending Predictions</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="spendingPredictionChart" height="120"></canvas>
+                    <p class="mt-3 text-muted">These predictions are based on your past spending patterns and may help you plan your finances better.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">AI Savings Suggestions</h5>
+                </div>
+                <div class="card-body">
+                    {% if suggested_goal %}
+                        <ul class="list-group mb-3">
+                            <li class="list-group-item">Average Monthly Savings: <strong>₹{{ suggested_goal.monthly }}</strong></li>
+                            <li class="list-group-item">Potential in 6 Months: <strong>₹{{ suggested_goal.six_month }}</strong></li>
+                            <li class="list-group-item">Potential in 12 Months: <strong>₹{{ suggested_goal.twelve_month }}</strong></li>
+                        </ul>
+                        <p class="text-muted">Consider setting a savings goal based on these suggestions to improve your financial health.</p>
+                    {% else %}
+                        <p class="text-muted">Not enough data to suggest a savings goal yet. Add more transactions to get personalized suggestions.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var ctx = document.getElementById('spendingPredictionChart').getContext('2d');
+        var predictions = {{ predictions.predictions|default:'[]'|safe }};
+        var labels = predictions.map(function(p) { return p.month; });
+        var data = predictions.map(function(p) { return p.amount; });
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Predicted Spending',
+                    data: data,
+                    backgroundColor: 'rgba(23, 162, 184, 0.2)',
+                    borderColor: 'rgba(23, 162, 184, 1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: 'rgba(23, 162, 184, 1)',
+                    pointRadius: 4,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero: true,
+                            precision: 0
+                        }
+                    }]
+                }
+            }
+        });
+    });
+</script>
+{% endblock %} 

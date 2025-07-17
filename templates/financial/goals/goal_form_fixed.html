@@ -1,0 +1,324 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if goal %}Edit Savings Goal{% else %}Create Savings Goal{% endif %} - AI Finance Manager{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">{% if goal %}Edit Savings Goal{% else %}Create Savings Goal{% endif %}</h1>
+    <a href="{% url 'financial:savings_goal_list' %}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left mr-1"></i> Back to Goals
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form method="post" id="goalForm">
+                    {% csrf_token %}
+                    
+                    <div class="form-group">
+                        <label for="id_name">Goal Name</label>
+                        <input type="text" name="name" id="id_name" class="form-control" 
+                               value="{{ goal.name|default:'' }}" required>
+                        <small class="form-text text-muted">
+                            Enter a name for your savings goal (e.g. "New Car", "Vacation", "Emergency Fund").
+                        </small>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_target_amount">Target Amount</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">₹</span>
+                                    </div>
+                                    <input type="number" name="target_amount" id="id_target_amount" class="form-control" 
+                                           value="{{ goal.target_amount|default:'0.00' }}" step="0.01" min="0" required>
+                                </div>
+                                <small class="form-text text-muted">
+                                    The total amount you want to save for this goal.
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_current_amount">Current Balance</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">₹</span>
+                                    </div>
+                                    <input type="number" name="current_amount" id="id_current_amount" class="form-control" 
+                                           value="{{ goal.current_amount|default:'0.00' }}" step="0.01" min="0">
+                                </div>
+                                <small class="form-text text-muted">
+                                    Amount you've already saved towards this goal.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_target_date">Target Date</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text"><i class="far fa-calendar-alt"></i></span>
+                                    </div>
+                                    <input type="text" name="target_date" id="id_target_date" class="form-control" 
+                                           value="{{ goal.target_date|date:'Y-m-d' }}">
+                                </div>
+                                <small class="form-text text-muted">
+                                    When do you want to achieve this goal? Leave blank for no deadline.
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_status">Status</label>
+                                <select name="status" id="id_status" class="form-control">
+                                    <option value="in_progress" {% if goal.status == 'in_progress' or not goal %}selected{% endif %}>In Progress</option>
+                                    <option value="completed" {% if goal.status == 'completed' %}selected{% endif %}>Completed</option>
+                                    <option value="abandoned" {% if goal.status == 'abandoned' %}selected{% endif %}>Abandoned</option>
+                                </select>
+                                <small class="form-text text-muted">
+                                    Current status of this savings goal.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_description">Description</label>
+                        <textarea name="description" id="id_description" class="form-control" 
+                                  rows="3">{{ goal.description }}</textarea>
+                    </div>
+                    
+                    <div class="text-right">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save mr-1"></i> 
+                            {% if goal %}Update Goal{% else %}Create Goal{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Goal Info Box -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Savings Calculator</h5>
+            </div>
+            <div class="card-body">
+                <div id="calculationResults" class="d-none">
+                    <div class="alert alert-info mb-3">
+                        <p class="mb-2"><strong>Saving Progress:</strong></p>
+                        <div class="progress mb-2" style="height: 20px;">
+                            <div class="progress-bar" id="progressPercentage" role="progressbar" 
+                                 style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                0%
+                            </div>
+                        </div>
+                        <p class="small mb-0" id="progressText">₹0 of ₹0</p>
+                    </div>
+                    
+                    <div id="targetDateSection" class="d-none">
+                        <p class="mb-1"><strong>Estimated Monthly Contribution:</strong></p>
+                        <h3 class="text-primary mb-3" id="monthlyContribution">₹0.00</h3>
+                        
+                        <p class="mb-1"><strong>Time Remaining:</strong></p>
+                        <p id="timeRemaining">0 months</p>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6>Calculated Savings Timeline</h6>
+                    <div class="form-group">
+                        <label for="id_monthly_deposit">Monthly Deposit</label>
+                        <div class="input-group mb-3">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">₹</span>
+                            </div>
+                            <input type="number" id="id_monthly_deposit" class="form-control" placeholder="0.00" step="0.01" min="0">
+                            <div class="input-group-append">
+                                <span class="input-group-text">per month</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="calculatedResults" class="d-none">
+                        <p class="mb-1"><strong>Time to Achieve Goal:</strong></p>
+                        <p id="calculatedTime">0 months</p>
+                        
+                        <p class="mb-1"><strong>Completion Date:</strong></p>
+                        <p id="calculatedDate">-</p>
+                    </div>
+                </div>
+                
+                <div id="calculationPlaceholder">
+                    <div class="text-center py-4">
+                        <i class="fas fa-calculator fa-3x text-muted mb-3"></i>
+                        <p>Enter your goal details to see savings calculations.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tips -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Tips for Success</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <i class="fas fa-check-circle text-success mr-2"></i>
+                        Set specific, measurable goals
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-check-circle text-success mr-2"></i>
+                        Make your goal realistic and achievable
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-check-circle text-success mr-2"></i>
+                        Break larger goals into smaller milestones
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-check-circle text-success mr-2"></i>
+                        Set up automatic deposits to your savings
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-check-circle text-success mr-2"></i>
+                        Track your progress regularly to stay motivated
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize date picker
+        flatpickr("#id_target_date", {
+            dateFormat: "Y-m-d",
+            minDate: "today"
+        });
+        
+        // Calculate savings progress and projections
+        const targetAmountInput = document.getElementById('id_target_amount');
+        const currentAmountInput = document.getElementById('id_current_amount');
+        const targetDateInput = document.getElementById('id_target_date');
+        const monthlyDepositInput = document.getElementById('id_monthly_deposit');
+        
+        const calculationResults = document.getElementById('calculationResults');
+        const calculationPlaceholder = document.getElementById('calculationPlaceholder');
+        const targetDateSection = document.getElementById('targetDateSection');
+        const calculatedResults = document.getElementById('calculatedResults');
+        
+        const progressBar = document.getElementById('progressPercentage');
+        const progressText = document.getElementById('progressText');
+        const monthlyContribution = document.getElementById('monthlyContribution');
+        const timeRemaining = document.getElementById('timeRemaining');
+        const calculatedTime = document.getElementById('calculatedTime');
+        const calculatedDate = document.getElementById('calculatedDate');
+        
+        // Function to update calculations
+        function updateCalculations() {
+            const targetAmount = parseFloat(targetAmountInput.value) || 0;
+            const currentAmount = parseFloat(currentAmountInput.value) || 0;
+            const targetDate = targetDateInput.value ? new Date(targetDateInput.value) : null;
+            
+            if (targetAmount > 0) {
+                // Show calculation results
+                calculationResults.classList.remove('d-none');
+                calculationPlaceholder.classList.add('d-none');
+                
+                // Calculate progress percentage
+                const progress = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0;
+                progressBar.style.width = Math.min(progress, 100) + '%';
+                progressBar.textContent = Math.round(progress) + '%';
+                progressBar.setAttribute('aria-valuenow', progress);
+                progressText.textContent = `₹${currentAmount.toFixed(2)} of ₹${targetAmount.toFixed(2)}`;
+                
+                // Calculate monthly contribution if target date is set
+                if (targetDate) {
+                    const today = new Date();
+                    const remainingAmount = targetAmount - currentAmount;
+                    
+                    // Calculate months between now and target date
+                    const months = (targetDate.getFullYear() - today.getFullYear()) * 12 + 
+                                  (targetDate.getMonth() - today.getMonth());
+                    
+                    if (months > 0) {
+                        targetDateSection.classList.remove('d-none');
+                        const monthlyAmount = remainingAmount / months;
+                        monthlyContribution.textContent = `₹${monthlyAmount.toFixed(2)}`;
+                        timeRemaining.textContent = `${months} month${months !== 1 ? 's' : ''}`;
+                    } else {
+                        targetDateSection.classList.add('d-none');
+                    }
+                } else {
+                    targetDateSection.classList.add('d-none');
+                }
+            } else {
+                calculationResults.classList.add('d-none');
+                calculationPlaceholder.classList.remove('d-none');
+            }
+        }
+        
+        // Function to update timeline calculations
+        function updateTimeline() {
+            const targetAmount = parseFloat(targetAmountInput.value) || 0;
+            const currentAmount = parseFloat(currentAmountInput.value) || 0;
+            const monthlyDeposit = parseFloat(monthlyDepositInput.value) || 0;
+            
+            if (targetAmount > 0 && monthlyDeposit > 0) {
+                calculatedResults.classList.remove('d-none');
+                
+                const remainingAmount = targetAmount - currentAmount;
+                const months = Math.ceil(remainingAmount / monthlyDeposit);
+                
+                calculatedTime.textContent = `${months} month${months !== 1 ? 's' : ''}`;
+                
+                // Calculate completion date
+                const completionDate = new Date();
+                completionDate.setMonth(completionDate.getMonth() + months);
+                calculatedDate.textContent = completionDate.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+            } else {
+                calculatedResults.classList.add('d-none');
+            }
+        }
+        
+        // Add event listeners
+        if (targetAmountInput && currentAmountInput && targetDateInput) {
+            targetAmountInput.addEventListener('input', updateCalculations);
+            currentAmountInput.addEventListener('input', updateCalculations);
+            targetDateInput.addEventListener('change', updateCalculations);
+            
+            // Initial calculation
+            updateCalculations();
+        }
+        
+        if (monthlyDepositInput) {
+            monthlyDepositInput.addEventListener('input', updateTimeline);
+        }
+    });
+</script>
+{% endblock %} 

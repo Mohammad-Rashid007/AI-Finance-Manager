@@ -1,0 +1,219 @@
+/* Custom Styles for AI Finance Manager */
+
+/* Global Styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+    line-height: 1.6;
+}
+
+a {
+    transition: all 0.3s ease;
+}
+
+.bg-primary {
+    background-color: #4e73df !important;
+}
+
+.btn-primary {
+    background-color: #4e73df;
+    border-color: #4e73df;
+}
+
+.btn-primary:hover {
+    background-color: #2e59d9;
+    border-color: #2653d4;
+}
+
+.btn-outline-primary {
+    color: #4e73df;
+    border-color: #4e73df;
+}
+
+.btn-outline-primary:hover {
+    background-color: #4e73df;
+    border-color: #4e73df;
+}
+
+/* Card Styles */
+.card {
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.25);
+}
+
+.card-header {
+    background-color: #f8f9fc;
+    border-bottom: 1px solid #e3e6f0;
+}
+
+/* Form Styles */
+.form-control {
+    border-radius: 0.35rem;
+    padding: 0.8rem 1rem;
+    font-size: 0.85rem;
+    border: 1px solid #d1d3e2;
+}
+
+.form-control:focus {
+    border-color: #bac8f3;
+    box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+}
+
+/* Dashboard Stats */
+.stat-card {
+    transition: transform 0.3s ease;
+    overflow: hidden;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    opacity: 0.7;
+}
+
+/* Navigation */
+.navbar {
+    padding: 0.75rem 1rem;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+}
+
+.navbar-dark .navbar-nav .nav-link {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.navbar-dark .navbar-nav .nav-link:hover {
+    color: #fff;
+}
+
+.dropdown-item:active {
+    background-color: #4e73df;
+}
+
+/* Transactions Table */
+.table-hover tbody tr:hover {
+    background-color: rgba(78, 115, 223, 0.05);
+}
+
+/* Progress Bars */
+.progress {
+    background-color: #eaecf4;
+    border-radius: 0.35rem;
+}
+
+/* Charts */
+canvas {
+    max-width: 100%;
+}
+
+/* Utility Classes */
+.text-primary {
+    color: #4e73df !important;
+}
+
+.rounded-lg {
+    border-radius: 0.5rem !important;
+}
+
+/* Alert Styling */
+.alert {
+    border: none;
+    border-radius: 0.35rem;
+}
+
+.alert-success {
+    background-color: #1cc88a;
+    color: white;
+}
+
+.alert-danger {
+    background-color: #e74a3b;
+    color: white;
+}
+
+.alert-warning {
+    background-color: #f6c23e;
+    color: white;
+}
+
+.alert-info {
+    background-color: #36b9cc;
+    color: white;
+}
+
+/* Pagination */
+.page-item.active .page-link {
+    background-color: #4e73df;
+    border-color: #4e73df;
+}
+
+.page-link {
+    color: #4e73df;
+}
+
+/* Custom Shadows */
+.shadow-sm {
+    box-shadow: 0 0.125rem 0.25rem 0 rgba(58, 59, 69, 0.2) !important;
+}
+
+.shadow {
+    box-shadow: 0 0.5rem 1rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+
+.shadow-lg {
+    box-shadow: 0 1rem 3rem rgba(58, 59, 69, 0.175) !important;
+}
+
+/* Footer */
+footer {
+    margin-top: auto;
+}
+
+footer a:hover {
+    text-decoration: none;
+    opacity: 0.8;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .stat-card {
+        margin-bottom: 1rem;
+    }
+    
+    .card-columns {
+        column-count: 1;
+    }
+}
+
+/* Theme Toggle */
+.theme-toggle {
+    cursor: pointer;
+}
+
+/* Loading Spinner */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.2em;
+}
+
+/* Transaction Types */
+.transaction-income {
+    color: #1cc88a;
+}
+
+.transaction-expense {
+    color: #e74a3b;
+}
+
+.transaction-transfer {
+    color: #4e73df;
+} 

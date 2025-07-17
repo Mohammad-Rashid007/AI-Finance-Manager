@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Budgets - AI Finance Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">Budgets</h1>
+    <a href="{% url 'financial:budget_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus mr-1"></i> Create Budget
+    </a>
+</div>
+
+<!-- Month Selector -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="form-inline justify-content-center">
+            <div class="form-group mr-3">
+                <label for="month" class="mr-2">Month:</label>
+                <select name="month" id="month" class="form-control">
+                    {% for m in available_months %}
+                    <option value="{{ m.month }}-{{ m.year }}" {% if m.month == current_month and m.year == current_year %}selected{% endif %}>
+                        {{ m.month_name }} {{ m.year }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">View Budgets</button>
+        </form>
+    </div>
+</div>
+
+{% if budgets %}
+<!-- Budget Overview -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card bg-light shadow-sm">
+            <div class="card-body text-center">
+                <h6 class="card-title text-muted">Total Budget</h6>
+                <h2 class="card-text mb-0">₹{{ total_budget|floatformat:2 }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-light shadow-sm">
+            <div class="card-body text-center">
+                <h6 class="card-title text-muted">Total Spent</h6>
+                <h2 class="card-text mb-0 {% if total_spent > total_budget %}text-danger{% endif %}">
+                    ₹{{ total_spent|floatformat:2 }}
+                </h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-light shadow-sm">
+            <div class="card-body text-center">
+                <h6 class="card-title text-muted">Remaining</h6>
+                <h2 class="card-text mb-0 {% if remaining < 0 %}text-danger{% else %}text-success{% endif %}">
+                    ₹{{ remaining|floatformat:2 }}
+                </h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Budget Status Chart -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">Budget Status</h5>
+    </div>
+    <div class="card-body">
+        <div style="height: 300px;">
+            <canvas id="budgetProgressChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Budget Category List -->
+<div class="card shadow-sm">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">Budget Categories</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th class="text-right">Budgeted</th>
+                        <th class="text-right">Spent</th>
+                        <th class="text-right">Remaining</th>
+                        <th>Progress</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for budget in budgets %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'financial:budget_detail' budget.id %}">
+                                {{ budget.category.name }}
+                            </a>
+                        </td>
+                        <td class="text-right">₹{{ budget.amount|floatformat:2 }}</td>
+                        <td class="text-right">₹{{ budget.spent|floatformat:2 }}</td>
+                        <td class="text-right 
+                            {% if budget.remaining < 0 %}text-danger{% elif budget.remaining < budget.amount|multiply:0.1 %}text-warning{% else %}text-success{% endif %}">
+                            ₹{{ budget.remaining|floatformat:2 }}
+                        </td>
+                        <td>
+                            <div class="progress">
+                                <div class="progress-bar 
+                                    {% if budget.percentage >= 100 %}bg-danger
+                                    {% elif budget.percentage >= 85 %}bg-warning
+                                    {% else %}bg-success{% endif %}" 
+                                    role="progressbar" 
+                                    style="width: {{ budget.percentage|min_value:100 }}%" 
+                                    aria-valuenow="{{ budget.percentage }}" 
+                                    aria-valuemin="0" 
+                                    aria-valuemax="100">
+                                    {{ budget.percentage|floatformat:0 }}%
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'financial:budget_edit' budget.id %}" 
+                                   class="btn btn-outline-primary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'financial:budget_delete' budget.id %}" 
+                                   class="btn btn-outline-danger" title="Delete">
+                                    <i class="fas fa-trash-alt"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card shadow-sm">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-file-invoice-dollar fa-4x text-muted mb-3"></i>
+        <h3>No Budgets Found</h3>
+        <p class="text-muted">
+            You haven't created any budgets for {{ current_month_name }} {{ current_year }}.
+        </p>
+        <a href="{% url 'financial:budget_create' %}" class="btn btn-primary mt-3">
+            <i class="fas fa-plus mr-1"></i> Create Your First Budget
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if budgets %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('budgetProgressChart').getContext('2d');
+        
+        // Category names and data
+        const categories = [
+            {% for budget in budgets %}
+                "{{ budget.category.name }}",
+            {% endfor %}
+        ];
+        
+        const budgetedAmounts = [
+            {% for budget in budgets %}
+                {{ budget.amount }},
+            {% endfor %}
+        ];
+        
+        const spentAmounts = [
+            {% for budget in budgets %}
+                {{ budget.spent }},
+            {% endfor %}
+        ];
+        
+        // Create the chart
+        new Chart(ctx, {
+            type: 'horizontalBar',
+            data: {
+                labels: categories,
+                datasets: [
+                    {
+                        label: 'Budget',
+                        data: budgetedAmounts,
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Spent',
+                        data: spentAmounts,
+                        backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    xAxes: [{
+                        ticks: {
+                            beginAtZero: true,
+                            callback: function(value) {
+                                return '₹' + value;
+                            }
+                        }
+                    }]
+                },
+                tooltips: {
+                    callbacks: {
+                        label: function(tooltipItem, data) {
+                            return data.datasets[tooltipItem.datasetIndex].label + ': ₹' + 
+                                   parseFloat(tooltipItem.value).toFixed(2);
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endif %}
+{% endblock %} 

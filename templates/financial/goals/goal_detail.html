@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}{{ goal.name }} - Savings Goal - AI Finance Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">{{ goal.name }}</h1>
+    <div>
+        <a href="{% url 'financial:savings_goal_edit' goal.id %}" class="btn btn-outline-primary mr-2">
+            <i class="fas fa-edit mr-1"></i> Edit Goal
+        </a>
+        <a href="{% url 'financial:savings_goal_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left mr-1"></i> Back to Goals
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Goal Overview -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Goal Overview</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <p class="mb-1 text-muted">Target Amount</p>
+                        <h3 class="mb-0">₹{{ goal.target_amount|floatformat:2 }}</h3>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1 text-muted">Current Balance</p>
+                        <h3 class="mb-0">₹{{ goal.current_amount|floatformat:2 }}</h3>
+                    </div>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="progress mb-4" style="height: 25px;">
+                    {% if goal.target_amount > 0 %}
+                    {% with percent_complete=goal.current_amount|percentage:goal.target_amount|floatformat:0 %}
+                    <div class="progress-bar 
+                        {% if goal.current_amount >= goal.target_amount %}bg-success
+                        {% elif goal.current_amount >= goal.target_amount|multiply:0.75 %}bg-info
+                        {% elif goal.current_amount >= goal.target_amount|multiply:0.5 %}bg-primary
+                        {% elif goal.current_amount >= goal.target_amount|multiply:0.25 %}bg-warning
+                        {% else %}bg-danger{% endif %}" 
+                         role="progressbar" 
+                         style="width: {% if goal.current_amount >= goal.target_amount %}100{% else %}{{ percent_complete }}{% endif %}%;" 
+                         aria-valuenow="{{ percent_complete }}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                        {{ percent_complete }}%
+                    </div>
+                    {% endwith %}
+                    {% else %}
+                    <div class="progress-bar bg-secondary" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                        0%
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <p class="mb-1 text-muted">Target Date</p>
+                        <h5 class="mb-0">{% if goal.target_date %}{{ goal.target_date|date:"F j, Y" }}{% else %}No deadline set{% endif %}</h5>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1 text-muted">Status</p>
+                        <h5 class="mb-0">
+                            <span class="badge {% if goal.status == 'completed' %}badge-success{% elif goal.status == 'abandoned' %}badge-danger{% else %}badge-info{% endif %}">
+                                {{ goal.get_status_display }}
+                            </span>
+                        </h5>
+                    </div>
+                </div>
+                
+                {% if goal.description %}
+                <div class="card bg-light mb-0">
+                    <div class="card-body">
+                        <h6 class="card-title">Description</h6>
+                        <p class="card-text">{{ goal.description }}</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Contributions Timeline -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Contributions</h5>
+                <a href="{% url 'financial:savings_goal_add_contribution' goal.id %}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus mr-1"></i> Add Contribution
+                </a>
+            </div>
+            <div class="card-body">
+                {% if contributions %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Account</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for contribution in contributions %}
+                            <tr>
+                                <td>{{ contribution.date|date:"M d, Y" }}</td>
+                                <td class="text-success">+₹{{ contribution.amount|floatformat:2 }}</td>
+                                <td>{{ contribution.account.name }}</td>
+                                <td>{{ contribution.notes|default:"-" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-piggy-bank fa-3x text-muted mb-3"></i>
+                    <p>No contributions recorded yet.</p>
+                    <a href="{% url 'financial:savings_goal_add_contribution' goal.id %}" class="btn btn-primary mt-2">
+                        <i class="fas fa-plus mr-1"></i> Add Your First Contribution
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Goal Stats -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Goal Stats</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <p class="mb-1 text-muted small">Remaining</p>
+                        <h5 class="mb-0">₹{{ goal.target_amount|subtract:goal.current_amount|floatformat:2 }}</h5>
+                    </div>
+                    <div class="col-6">
+                        <p class="mb-1 text-muted small">Created</p>
+                        <h5 class="mb-0">{{ goal.created_at|date:"M d, Y" }}</h5>
+                    </div>
+                </div>
+                
+                {% if goal.target_date %}
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <p class="mb-1 text-muted small">Time Left</p>
+                        <h5 class="mb-0">{{ goal.target_date|timeuntil }}</h5>
+                    </div>
+                    <div class="col-6">
+                        <p class="mb-1 text-muted small">Needed Per Month</p>
+                        <h5 class="mb-0">₹{{ goal.target_amount|subtract:goal.current_amount|monthly_amount:goal.target_date|floatformat:2 }}</h5>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="alert alert-info mb-0">
+                    <p class="mb-0">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        {% if goal.current_amount >= goal.target_amount %}
+                            Congratulations! You've reached your target goal amount.
+                        {% elif goal.target_date %}
+                            Keep saving regularly to reach your goal by {{ goal.target_date|date:"F j, Y" }}.
+                        {% else %}
+                            Set up regular contributions to reach your goal faster.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Suggested Actions -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Suggested Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <a href="{% url 'financial:savings_goal_add_contribution' goal.id %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Add a contribution</h6>
+                            <small><i class="fas fa-chevron-right"></i></small>
+                        </div>
+                        <p class="mb-1 small text-muted">Record a payment toward this goal</p>
+                    </a>
+                    
+                    <a href="{% url 'financial:savings_goal_edit' goal.id %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Update goal details</h6>
+                            <small><i class="fas fa-chevron-right"></i></small>
+                        </div>
+                        <p class="mb-1 small text-muted">Change target amount, date, or other details</p>
+                    </a>
+                    
+                    {% if goal.current_amount >= goal.target_amount and goal.status != 'completed' %}
+                    <a href="#" class="list-group-item list-group-item-action list-group-item-success">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Mark as completed</h6>
+                            <small><i class="fas fa-check-circle"></i></small>
+                        </div>
+                        <p class="mb-1 small text-muted">You've reached your target amount!</p>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

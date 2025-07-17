@@ -1,0 +1,329 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Income Analysis - AI Finance Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">Income Analysis</h1>
+    <div>
+        <form class="form-inline" method="get">
+            <div class="form-group mr-2">
+                <select name="timeframe" class="form-control">
+                    <option value="30" {% if timeframe == 30 %}selected{% endif %}>Last 30 Days</option>
+                    <option value="90" {% if timeframe == 90 %}selected{% endif %}>Last 3 Months</option>
+                    <option value="180" {% if timeframe == 180 %}selected{% endif %}>Last 6 Months</option>
+                    <option value="365" {% if timeframe == 365 %}selected{% endif %}>Last Year</option>
+                    <option value="all" {% if timeframe == 'all' %}selected{% endif %}>All Time</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Apply</button>
+        </form>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <!-- Monthly Income Trend -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Monthly Income</h5>
+            </div>
+            <div class="card-body">
+                <div style="height: 300px;">
+                    <canvas id="monthlyIncomeChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Income Sources Trend -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Income Sources Over Time</h5>
+            </div>
+            <div class="card-body">
+                <div style="height: 350px;">
+                    <canvas id="incomeCategoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Income Summary -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Income Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title text-muted">Total Income</h6>
+                                <h2 class="card-text">₹{{ total_income|default:"0.00"|floatformat:2 }}</h2>
+                                <div class="small text-muted">
+                                    {% if income_change > 0 %}
+                                        <span class="text-success">
+                                            <i class="fas fa-arrow-up mr-1"></i>
+                                            {{ income_change|default:"0.0"|floatformat:1 }}%
+                                        </span>
+                                    {% else %}
+                                        <span class="text-danger">
+                                            <i class="fas fa-arrow-down mr-1"></i>
+                                            {{ income_change|abs|default:"0.0"|floatformat:1 }}%
+                                        </span>
+                                    {% endif %}
+                                    compared to previous period
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title text-muted">Average Monthly</h6>
+                                <h3 class="card-text">₹{{ avg_monthly_income|default:"0.00"|floatformat:2 }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title text-muted">Highest Income</h6>
+                                <h3 class="card-text">₹{{ max_income|default:"0.00"|floatformat:2 }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Top Income Sources -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Income Sources</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <canvas id="incomeSourcesPieChart" style="height: 200px;"></canvas>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Source</th>
+                                <th class="text-right">Amount</th>
+                                <th class="text-right">% of Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for source in income_sources %}
+                            <tr>
+                                <td>{{ source.name|default:"Not categorized" }}</td>
+                                <td class="text-right">₹{{ source.amount|default:"0.00"|floatformat:2 }}</td>
+                                <td class="text-right">{{ source.percentage|default:"0.0"|floatformat:1 }}%</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center py-3">No income data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Income Insights -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-teal text-white">
+                <h5 class="mb-0"><i class="fas fa-lightbulb mr-2"></i> AI Insights</h5>
+            </div>
+            <div class="card-body">
+                {% if income_insights %}
+                <ul class="list-group list-group-flush">
+                    {% for insight in income_insights %}
+                    <li class="list-group-item">
+                        <div class="d-flex">
+                            <div class="mr-3">
+                                <i class="fas fa-{{ insight.icon }} text-{{ insight.color }}"></i>
+                            </div>
+                            <div>
+                                <strong>{{ insight.title }}</strong>
+                                <p class="mb-0">{{ insight.message }}</p>
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-brain text-muted fa-2x mb-3"></i>
+                    <p class="mb-0">More data is needed to generate income insights.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Income Stability -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">Income Stability</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <canvas id="incomeStabilityChart" height="250"></canvas>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-light h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Income Volatility</h5>
+                        <div class="text-center">
+                            <h1 class="display-4">{{ income_volatility|default:"0"|floatformat:0 }}%</h1>
+                            <p class="mb-0">
+                                {% if income_volatility < 10 %}
+                                <span class="badge badge-success">Very Stable</span>
+                                {% elif income_volatility < 25 %}
+                                <span class="badge badge-info">Stable</span>
+                                {% elif income_volatility < 50 %}
+                                <span class="badge badge-warning">Moderate</span>
+                                {% else %}
+                                <span class="badge badge-danger">Volatile</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <hr>
+                        <p class="small">
+                            Income volatility measures how much your income fluctuates month to month. 
+                            Lower volatility indicates more stable and predictable income.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Sample data - would be replaced by actual data from Django
+    const monthlyData = {
+        labels: {{ months|default:"[]"|safe }},
+        datasets: [{
+            label: 'Monthly Income',
+            data: {{ monthly_income|default:"[]"|safe }},
+            backgroundColor: 'rgba(40, 167, 69, 0.2)',
+            borderColor: 'rgba(40, 167, 69, 1)',
+            borderWidth: 2
+        }]
+    };
+    
+    const monthlyIncomeChart = new Chart(document.getElementById('monthlyIncomeChart').getContext('2d'), {
+        type: 'bar',
+        data: monthlyData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                yAxes: [{
+                    ticks: {
+                        beginAtZero: true,
+                        callback: function(value) {
+                            return '₹' + value.toLocaleString();
+                        }
+                    }
+                }]
+            },
+            tooltips: {
+                callbacks: {
+                    label: function(tooltipItem, data) {
+                        return data.datasets[tooltipItem.datasetIndex].label + ': ₹' + 
+                               parseFloat(tooltipItem.yLabel).toLocaleString();
+                    }
+                }
+            }
+        }
+    });
+    
+    // Income sources pie chart
+    const sourcesData = {
+        labels: {{ income_source_names|default:"[]"|safe }},
+        datasets: [{
+            data: {{ income_source_values|default:"[]"|safe }},
+            backgroundColor: [
+                'rgba(40, 167, 69, 0.7)',
+                'rgba(23, 162, 184, 0.7)',
+                'rgba(255, 193, 7, 0.7)',
+                'rgba(111, 66, 193, 0.7)',
+                'rgba(0, 123, 255, 0.7)',
+                'rgba(220, 53, 69, 0.7)',
+                'rgba(253, 126, 20, 0.7)',
+            ],
+        }]
+    };
+    
+    const sourcesChart = new Chart(document.getElementById('incomeSourcesPieChart').getContext('2d'), {
+        type: 'doughnut',
+        data: sourcesData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            tooltips: {
+                callbacks: {
+                    label: function(tooltipItem, data) {
+                        const label = data.labels[tooltipItem.index];
+                        const value = data.datasets[0].data[tooltipItem.index];
+                        return label + ': ₹' + parseFloat(value).toLocaleString();
+                    }
+                }
+            }
+        }
+    });
+    
+    // Income stability chart - simplified for now
+    const stabilityData = {
+        labels: {{ months|default:"[]"|safe }},
+        datasets: [{
+            label: 'Monthly Variation',
+            data: {{ income_variation|default:"[]"|safe }},
+            type: 'line',
+            fill: false,
+            borderColor: 'rgba(220, 53, 69, 1)',
+            tension: 0.4
+        }]
+    };
+    
+    const stabilityChart = new Chart(document.getElementById('incomeStabilityChart').getContext('2d'), {
+        type: 'bar',
+        data: stabilityData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                yAxes: [{
+                    ticks: {
+                        beginAtZero: true,
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    },
+                    scaleLabel: {
+                        display: true,
+                        labelString: 'Monthly Variation %'
+                    }
+                }]
+            }
+        }
+    });
+});
+</script>
+{% endblock %} 

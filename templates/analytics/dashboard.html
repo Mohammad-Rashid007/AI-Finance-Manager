@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}Analytics Dashboard - AI Finance Manager{% endblock %}
+
+{% block extra_css %}
+<style>
+    .insight-card {
+        transition: transform 0.2s;
+    }
+    .insight-card:hover {
+        transform: translateY(-5px);
+    }
+    .bg-purple {
+        background-color: #6f42c1;
+    }
+    .bg-azure {
+        background-color: #007bff;
+    }
+    .bg-teal {
+        background-color: #20c997;
+    }
+    .bg-orange {
+        background-color: #fd7e14;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">Analytics Dashboard</h1>
+        </div>
+    </div>
+
+    <!-- Financial Summary -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Income</h5>
+                    <h3 class="text-success">₹{{ total_income|floatformat:2 }}</h3>
+                    <p class="text-muted">Last 30 days</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Expenses</h5>
+                    <h3 class="text-danger">₹{{ total_expenses|floatformat:2 }}</h3>
+                    <p class="text-muted">Last 30 days</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Net Cash Flow</h5>
+                    <h3 class="{% if net_cash_flow >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        ₹{{ net_cash_flow|floatformat:2 }}
+                    </h3>
+                    <p class="text-muted">Last 30 days</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Expense by Category Chart -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Expense by Category</h5>
+                    <div>
+                        <canvas id="expenseChart" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transaction Activity Chart -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Transaction Activity (Last 7 Days)</h5>
+                    <div>
+                        <canvas id="activityChart" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Anomalies -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-exclamation-triangle text-warning"></i> 
+                        Spending Anomalies
+                    </h5>
+                    {% if anomalies %}
+                        <div class="list-group">
+                            {% for anomaly in anomalies %}
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">{{ anomaly.description }}</h6>
+                                        <small>₹{{ anomaly.amount|floatformat:2 }}</small>
+                                    </div>
+                                    <p class="mb-1">{{ anomaly.date|date:"M d, Y" }} • {{ anomaly.category }}</p>
+                                    <small class="text-danger">{{ anomaly.severity }} deviation from normal</small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-success">
+                            No anomalies detected in your recent transactions.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Insights -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-lightbulb text-info"></i> 
+                        Financial Insights
+                    </h5>
+                    {% if insights %}
+                        <div class="list-group">
+                            {% for insight in insights %}
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">{{ insight.title }}</h6>
+                                    </div>
+                                    <p class="mb-1">{{ insight.description }}</p>
+                                    {% if insight.action %}
+                                        <small class="text-info">Suggested Action: {{ insight.action }}</small>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            No insights available. Continue using the app to generate personalized financial insights.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Budget Recommendations -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-chart-pie text-primary"></i> 
+                        Budget Recommendations
+                    </h5>
+                    {% if budget_recommendations %}
+                        <div class="row">
+                            {% for recommendation in budget_recommendations %}
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100 border-{% if recommendation.type == 'new' %}primary{% elif recommendation.type == 'increase' %}warning{% else %}danger{% endif %}">
+                                        <div class="card-body">
+                                            <h6 class="card-title">
+                                                <i class="{{ recommendation.icon }} text-{% if recommendation.type == 'new' %}primary{% elif recommendation.type == 'increase' %}warning{% else %}danger{% endif %} mr-2"></i>
+                                                {{ recommendation.category }}
+                                            </h6>
+                                            <p class="card-text">{{ recommendation.message }}</p>
+                                            {% if recommendation.type != 'new' %}
+                                                <p class="text-muted small">
+                                                    Current Budget: ₹{{ recommendation.current_amount|floatformat:2 }}
+                                                </p>
+                                                <p class="text-{% if recommendation.type == 'increase' %}warning{% else %}danger{% endif %} small">
+                                                    Suggested: ₹{{ recommendation.suggested_amount|floatformat:2 }}
+                                                </p>
+                                            {% else %}
+                                                <p class="text-primary small">
+                                                    Suggested Budget: ₹{{ recommendation.suggested_amount|floatformat:2 }}
+                                                </p>
+                                            {% endif %}
+                                            <a href="{% url 'financial:budget_create' %}" class="btn btn-sm btn-outline-primary">Create Budget</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            No budget recommendations available. Continue using the app to generate personalized budget suggestions.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Expense Chart
+    var expenseCtx = document.getElementById('expenseChart').getContext('2d');
+    var expenseChart = new Chart(expenseCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ expense_categories|safe }},
+            datasets: [{
+                data: {{ expense_values|safe }},
+                backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                    '#FF9F40', '#8AC054', '#EA526F', '#23B5D3', '#279AF1'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ': ₹' + context.raw.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Activity Chart
+    var activityCtx = document.getElementById('activityChart').getContext('2d');
+    var activityChart = new Chart(activityCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ activity_labels|safe }},
+            datasets: [
+                {
+                    label: 'Income',
+                    data: {{ income_data|safe }},
+                    backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Expenses',
+                    data: {{ expense_data|safe }},
+                    backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '₹' + value.toLocaleString();
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ₹' + context.raw.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %} 

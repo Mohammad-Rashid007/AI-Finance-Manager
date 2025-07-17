@@ -1,0 +1,536 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Spending Trends - AI Finance Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">Spending Trends</h1>
+    <div>
+        <form class="form-inline" method="get">
+            <div class="form-group mr-2">
+                <select name="timeframe" class="form-control">
+                    <option value="30" {% if timeframe == 30 %}selected{% endif %}>Last 30 Days</option>
+                    <option value="90" {% if timeframe == 90 %}selected{% endif %}>Last 3 Months</option>
+                    <option value="180" {% if timeframe == 180 %}selected{% endif %}>Last 6 Months</option>
+                    <option value="365" {% if timeframe == 365 %}selected{% endif %}>Last Year</option>
+                    <option value="all" {% if timeframe == 'all' %}selected{% endif %}>All Time</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Apply</button>
+        </form>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <!-- Monthly Spending Trend -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Monthly Spending</h5>
+            </div>
+            <div class="card-body">
+                <div style="height: 300px;">
+                    <canvas id="monthlySpendingChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Category Spending Trend -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Category Spending Trends</h5>
+            </div>
+            <div class="card-body">
+                <div style="height: 350px;">
+                    <canvas id="categoryTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Spending Summary -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Spending Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title text-muted">Total Expenses</h6>
+                                <h2 class="card-text">₹{{ total_expenses|default:"0.00"|floatformat:2 }}</h2>
+                                <div class="small text-muted">
+                                    {% if total_expenses_change > 0 %}
+                                        <span class="text-danger">
+                                            <i class="fas fa-arrow-up mr-1"></i>
+                                            {{ total_expenses_change|floatformat:1 }}%
+                                        </span>
+                                    {% else %}
+                                        <span class="text-success">
+                                            <i class="fas fa-arrow-down mr-1"></i>
+                                            {{ total_expenses_change|abs|floatformat:1 }}%
+                                        </span>
+                                    {% endif %}
+                                    compared to previous period
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title text-muted">Monthly Average</h6>
+                                <h3 class="card-text">₹{{ avg_monthly_expenses|floatformat:2 }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title text-muted">Largest Expense</h6>
+                                <h3 class="card-text">₹{{ largest_expense|floatformat:2 }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Top Categories -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Top Spending Categories</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <canvas id="categoryPieChart" style="height: 200px;"></canvas>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th class="text-right">Amount</th>
+                                <th class="text-right">% of Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for category in top_categories %}
+                            <tr>
+                                <td>{{ category.name }}</td>
+                                <td class="text-right">₹{{ category.amount|floatformat:2 }}</td>
+                                <td class="text-right">{{ category.percentage|floatformat:1 }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Spending Insights -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-purple text-white">
+                <h5 class="mb-0"><i class="fas fa-lightbulb mr-2"></i> AI Insights</h5>
+            </div>
+            <div class="card-body">
+                {% if spending_insights %}
+                <ul class="list-group list-group-flush">
+                    {% for insight in spending_insights %}
+                    <li class="list-group-item">
+                        <div class="d-flex">
+                            <div class="mr-3">
+                                <i class="fas fa-{{ insight.icon }} text-{{ insight.color }}"></i>
+                            </div>
+                            <div>
+                                <strong>{{ insight.title }}</strong>
+                                <p class="mb-0">{{ insight.message }}</p>
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-brain text-muted fa-2x mb-3"></i>
+                    <p class="mb-0">More data is needed to generate spending insights.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Day of Week & Time Analysis -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Spending by Day of Week</h5>
+            </div>
+            <div class="card-body">
+                <div style="height: 250px;">
+                    <canvas id="dayOfWeekChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Spending by Time of Day</h5>
+            </div>
+            <div class="card-body">
+                <div style="height: 250px;">
+                    <canvas id="timeOfDayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Merchant Analysis -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">Top Merchants</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <div style="height: 300px;">
+                    <canvas id="merchantChart"></canvas>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Merchant</th>
+                                <th class="text-right">Total Spent</th>
+                                <th class="text-right">Avg Transaction</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for merchant in top_merchants %}
+                            <tr>
+                                <td>{{ merchant.name }}</td>
+                                <td class="text-right">₹{{ merchant.total|floatformat:2 }}</td>
+                                <td class="text-right">₹{{ merchant.average|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recurring Expenses -->
+<div class="card shadow-sm">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">Recurring Expenses</h5>
+    </div>
+    <div class="card-body">
+        {% if recurring_expenses %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th class="text-right">Amount</th>
+                        <th>Frequency</th>
+                        <th>Last Payment</th>
+                        <th class="text-right">Annual Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in recurring_expenses %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'financial:transaction_list' %}?search={{ expense.description }}">
+                                {{ expense.description }}
+                            </a>
+                        </td>
+                        <td>{{ expense.category }}</td>
+                        <td class="text-right">₹{{ expense.amount|floatformat:2 }}</td>
+                        <td>{{ expense.frequency }}</td>
+                        <td>{{ expense.last_date|date:"M d, Y" }}</td>
+                        <td class="text-right">₹{{ expense.annual_cost|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-active">
+                        <th colspan="5" class="text-right">Total Annual Recurring Expenses:</th>
+                        <th class="text-right">₹{{ total_annual_recurring|floatformat:2 }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-sync fa-4x text-muted mb-3"></i>
+            <h3>No Recurring Expenses Detected</h3>
+            <p class="text-muted">
+                We'll analyze your transaction patterns to identify recurring expenses.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Monthly Spending Chart
+        const monthlyCtx = document.getElementById('monthlySpendingChart').getContext('2d');
+        new Chart(monthlyCtx, {
+            type: 'line',
+            data: {
+                labels: {{ monthly_data.months|safe }},
+                datasets: [{
+                    label: 'Monthly Expenses',
+                    data: {{ monthly_data.expenses|safe }},
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    borderColor: 'rgba(220, 53, 69, 1)',
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero: true,
+                            callback: function(value) {
+                                return '₹' + value;
+                            }
+                        }
+                    }]
+                },
+                tooltips: {
+                    callbacks: {
+                        label: function(tooltipItem, data) {
+                            return 'Expenses: ₹' + tooltipItem.yLabel.toFixed(2);
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Category Spending Trend Chart
+        const categoryTrendCtx = document.getElementById('categoryTrendChart').getContext('2d');
+        new Chart(categoryTrendCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ category_trend.months|safe }},
+                datasets: [
+                    {% for category in category_trend.categories %}
+                    {
+                        label: '{{ category.name }}',
+                        data: {{ category.data|safe }},
+                        backgroundColor: '{{ category.color }}',
+                        borderColor: '{{ category.border }}',
+                        borderWidth: 1
+                    },
+                    {% endfor %}
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    xAxes: [{
+                        stacked: true
+                    }],
+                    yAxes: [{
+                        stacked: true,
+                        ticks: {
+                            beginAtZero: true,
+                            callback: function(value) {
+                                return '₹' + value;
+                            }
+                        }
+                    }]
+                },
+                tooltips: {
+                    callbacks: {
+                        label: function(tooltipItem, data) {
+                            return data.datasets[tooltipItem.datasetIndex].label + ': ₹' + 
+                                   tooltipItem.yLabel.toFixed(2);
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Category Pie Chart
+        const categoryPieCtx = document.getElementById('categoryPieChart').getContext('2d');
+        new Chart(categoryPieCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ top_categories_chart.labels|safe }},
+                datasets: [{
+                    data: {{ top_categories_chart.data|safe }},
+                    backgroundColor: [
+                        'rgba(220, 53, 69, 0.8)',
+                        'rgba(255, 193, 7, 0.8)',
+                        'rgba(23, 162, 184, 0.8)',
+                        'rgba(40, 167, 69, 0.8)',
+                        'rgba(111, 66, 193, 0.8)',
+                        'rgba(253, 126, 20, 0.8)',
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                legend: {
+                    position: 'right',
+                    labels: {
+                        boxWidth: 12
+                    }
+                },
+                tooltips: {
+                    callbacks: {
+                        label: function(tooltipItem, data) {
+                            const dataset = data.datasets[tooltipItem.datasetIndex];
+                            const total = dataset.data.reduce((acc, val) => acc + val, 0);
+                            const currentValue = dataset.data[tooltipItem.index];
+                            const percentage = ((currentValue / total) * 100).toFixed(1);
+                            return data.labels[tooltipItem.index] + ': ₹' + currentValue + ' (' + percentage + '%)';
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Day of Week Chart
+        const dayOfWeekCtx = document.getElementById('dayOfWeekChart').getContext('2d');
+        new Chart(dayOfWeekCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+                datasets: [{
+                    label: 'Average Spending',
+                    data: {{ day_of_week_data|safe }},
+                    backgroundColor: 'rgba(0, 123, 255, 0.5)',
+                    borderColor: 'rgba(0, 123, 255, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero: true,
+                            callback: function(value) {
+                                return '₹' + value;
+                            }
+                        }
+                    }]
+                },
+                tooltips: {
+                    callbacks: {
+                        label: function(tooltipItem, data) {
+                            return 'Average: ₹' + tooltipItem.yLabel.toFixed(2);
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Time of Day Chart
+        const timeOfDayCtx = document.getElementById('timeOfDayChart').getContext('2d');
+        new Chart(timeOfDayCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Morning', 'Afternoon', 'Evening', 'Night'],
+                datasets: [{
+                    label: 'Spending by Time of Day',
+                    data: {{ time_of_day_data|safe }},
+                    backgroundColor: 'rgba(23, 162, 184, 0.5)',
+                    borderColor: 'rgba(23, 162, 184, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero: true,
+                            callback: function(value) {
+                                return '₹' + value;
+                            }
+                        }
+                    }]
+                },
+                tooltips: {
+                    callbacks: {
+                        label: function(tooltipItem, data) {
+                            return 'Total: ₹' + tooltipItem.yLabel.toFixed(2);
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Merchant Chart
+        const merchantCtx = document.getElementById('merchantChart').getContext('2d');
+        new Chart(merchantCtx, {
+            type: 'horizontalBar',
+            data: {
+                labels: {{ merchant_chart.labels|safe }},
+                datasets: [{
+                    label: 'Amount Spent',
+                    data: {{ merchant_chart.data|safe }},
+                    backgroundColor: 'rgba(111, 66, 193, 0.5)',
+                    borderColor: 'rgba(111, 66, 193, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    xAxes: [{
+                        ticks: {
+                            beginAtZero: true,
+                            callback: function(value) {
+                                return '₹' + value;
+                            }
+                        }
+                    }]
+                },
+                tooltips: {
+                    callbacks: {
+                        label: function(tooltipItem, data) {
+                            return 'Spent: ₹' + tooltipItem.xLabel.toFixed(2);
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %} 

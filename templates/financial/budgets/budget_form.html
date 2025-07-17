@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if budget %}Edit Budget{% else %}Create Budget{% endif %} - AI Finance Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">{% if budget %}Edit Budget{% else %}Create Budget{% endif %}</h1>
+    <a href="{% url 'financial:budget_list' %}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left mr-1"></i> Back to Budgets
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_month">Month</label>
+                                <select name="month" id="id_month" class="form-control" required>
+                                    {% for month_num, month_name in months %}
+                                        <option value="{{ month_num }}" 
+                                                {% if budget.month == month_num or current_month == month_num %}selected{% endif %}>
+                                            {{ month_name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_year">Year</label>
+                                <select name="year" id="id_year" class="form-control" required>
+                                    {% for year_option in years %}
+                                        <option value="{{ year_option }}" 
+                                                {% if budget.year == year_option or current_year == year_option %}selected{% endif %}>
+                                            {{ year_option }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_name">Budget Name</label>
+                        <input type="text" name="name" id="id_name" class="form-control" 
+                               value="{{ form.name.value|default:'' }}" placeholder="Monthly Food Budget">
+                        <small class="form-text text-muted">
+                            If left blank, a name will be automatically generated based on the category and month.
+                        </small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_category">Category</label>
+                        <select name="category" id="id_category" class="form-control" required>
+                            <option value="">Select a category</option>
+                            {% for category in expense_categories %}
+                                <option value="{{ category.id }}" 
+                                        {% if form.category.value == category.id %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">
+                            Select a category to budget for. Only expense categories are shown.
+                        </small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_amount">Budget Amount</label>
+                        <div class="input-group">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">₹</span>
+                            </div>
+                            <input type="number" name="amount" id="id_amount" class="form-control" 
+                                   value="{{ form.amount.value|default:'0.00' }}" step="0.01" min="0" required>
+                        </div>
+                        <small class="form-text text-muted">
+                            Enter the amount you want to budget for this category.
+                        </small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_period">Budget Period</label>
+                        <select name="period" id="id_period" class="form-control" required>
+                            <option value="monthly" {% if form.period.value == 'monthly' %}selected{% endif %}>Monthly</option>
+                            <option value="weekly" {% if form.period.value == 'weekly' %}selected{% endif %}>Weekly</option>
+                            <option value="yearly" {% if form.period.value == 'yearly' %}selected{% endif %}>Yearly</option>
+                            <option value="daily" {% if form.period.value == 'daily' %}selected{% endif %}>Daily</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="id_is_active" name="is_active" 
+                                   {% if form.is_active.value %}checked{% endif %}>
+                            <label class="custom-control-label" for="id_is_active">Active Budget</label>
+                        </div>
+                    </div>
+                    
+                    <!-- Hidden start_date field -->
+                    <input type="hidden" name="start_date" id="id_start_date" value="{{ form.start_date.value|date:'Y-m-d'|default:'' }}">
+                    
+                    {% if category_spending and not budget %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-chart-line mr-2"></i>
+                        <strong>Smart Suggestion:</strong> Based on your past spending, you typically spend 
+                        <strong>₹{{ category_spending.average|floatformat:2 }}</strong> 
+                        on this category per month.
+                    </div>
+                    {% endif %}
+                    
+                    <div class="form-group">
+                        <label for="id_notes">Notes</label>
+                        <textarea name="notes" id="id_notes" class="form-control" rows="3">{{ form.notes.value|default:'' }}</textarea>
+                    </div>
+                    
+                    <div class="text-right">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save mr-1"></i> 
+                            {% if budget %}Update Budget{% else %}Create Budget{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if past_budgets %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Past Budgets for This Category</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Year</th>
+                                <th class="text-right">Budget</th>
+                                <th class="text-right">Actual Spending</th>
+                                <th class="text-right">Difference</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for past in past_budgets %}
+                            <tr>
+                                <td>{{ past.month_name }}</td>
+                                <td>{{ past.year }}</td>
+                                <td class="text-right">₹{{ past.amount|floatformat:2 }}</td>
+                                <td class="text-right">₹{{ past.actual_spending|floatformat:2 }}</td>
+                                <td class="text-right 
+                                    {% if past.difference < 0 %}text-danger{% else %}text-success{% endif %}">
+                                    ₹{{ past.difference|floatformat:2 }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Dynamically update the suggested amount when category changes
+        const categorySelect = document.getElementById('id_category');
+        
+        categorySelect.addEventListener('change', function() {
+            const categoryId = this.value;
+            if (!categoryId) return;
+            
+            fetch(`{% url 'financial:category_spending_ajax' %}?category=${categoryId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.spending) {
+                        // Update the suggestion box or create it if it doesn't exist
+                        let suggestionBox = document.querySelector('.alert-info');
+                        if (!suggestionBox) {
+                            suggestionBox = document.createElement('div');
+                            suggestionBox.className = 'alert alert-info';
+                            
+                            const formGroup = document.querySelector('#id_amount').closest('.form-group');
+                            formGroup.insertAdjacentElement('afterend', suggestionBox);
+                        }
+                        
+                        suggestionBox.innerHTML = `
+                            <i class="fas fa-chart-line mr-2"></i>
+                            <strong>Smart Suggestion:</strong> Based on your past spending, you typically spend 
+                            <strong>₹${parseFloat(data.spending.average).toFixed(2)}</strong> 
+                            on this category per month.
+                        `;
+                        
+                        // Optionally auto-fill the amount
+                        if (confirm('Would you like to use the suggested amount of ₹' + 
+                                   parseFloat(data.spending.average).toFixed(2) + '?')) {
+                            document.getElementById('id_amount').value = 
+                                parseFloat(data.spending.average).toFixed(2);
+                        }
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        });
+    });
+</script>
+{% endblock %} 

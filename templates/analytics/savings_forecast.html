@@ -1,0 +1,404 @@
+{% extends 'base.html' %}
+
+{% block title %}Savings Forecast - AI Finance Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">Savings Forecast</h1>
+</div>
+
+<!-- Savings Goals Progress -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">Savings Goals Forecast</h5>
+    </div>
+    <div class="card-body">
+        {% if goals %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Goal</th>
+                        <th>Target Amount</th>
+                        <th>Current Amount</th>
+                        <th>Target Date</th>
+                        <th>Progress</th>
+                        <th>Forecast</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for goal in goals %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'financial:savings_goal_detail' goal.id %}">
+                                {{ goal.name }}
+                            </a>
+                        </td>
+                        <td>₹{{ goal.target_amount|floatformat:2 }}</td>
+                        <td>₹{{ goal.current_amount|floatformat:2 }}</td>
+                        <td>{% if goal.target_date %}{{ goal.target_date|date:"M d, Y" }}{% else %}No deadline{% endif %}</td>
+                        <td>
+                            <div class="progress">
+                                <div class="progress-bar
+                                    {% if goal.progress_percentage >= 100 %}bg-success
+                                    {% elif goal.progress_percentage >= 75 %}bg-info
+                                    {% elif goal.progress_percentage >= 50 %}bg-primary
+                                    {% elif goal.progress_percentage >= 25 %}bg-warning
+                                    {% else %}bg-danger{% endif %}" 
+                                    role="progressbar"
+                                    style="width: {{ goal.progress_percentage }}%"
+                                    aria-valuenow="{{ goal.progress_percentage }}"
+                                    aria-valuemin="0"
+                                    aria-valuemax="100">
+                                    {{ goal.progress_percentage|floatformat:0 }}%
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if goal.forecast_status == 'on_track' %}
+                                <span class="badge badge-success">On Track</span>
+                            {% elif goal.forecast_status == 'behind' %}
+                                <span class="badge badge-warning">Behind Schedule</span>
+                            {% elif goal.forecast_status == 'at_risk' %}
+                                <span class="badge badge-danger">At Risk</span>
+                            {% elif goal.forecast_status == 'no_deadline' %}
+                                <span class="badge badge-secondary">No Deadline</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-primary view-forecast" data-goal-id="{{ goal.id }}">
+                                View Forecast
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-piggy-bank fa-3x text-muted mb-3"></i>
+            <p>You don't have any active savings goals.</p>
+            <a href="{% url 'financial:savings_goal_create' %}" class="btn btn-primary mt-2">
+                <i class="fas fa-plus mr-1"></i> Create a Savings Goal
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Forecast Charts -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Savings Projection</h5>
+            </div>
+            <div class="card-body">
+                <div style="height: 300px;">
+                    <canvas id="savingsProjectionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Goal Achievement Timeline</h5>
+            </div>
+            <div class="card-body">
+                <div style="height: 300px;">
+                    <canvas id="goalTimelineChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Forecast Details -->
+<div class="card shadow-sm">
+    <div class="card-header bg-teal text-white">
+        <h5 class="mb-0"><i class="fas fa-chart-line mr-2"></i> Detailed Forecast</h5>
+    </div>
+    <div class="card-body">
+        <div id="forecastDetails">
+            <div class="text-center py-4">
+                <p class="text-muted">Select a goal above to view detailed forecast.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Goal Forecast Modal -->
+<div class="modal fade" id="goalForecastModal" tabindex="-1" role="dialog" aria-labelledby="goalForecastModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="goalForecastModalLabel">Goal Forecast</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="goalForecastLoading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                    <p class="mt-2">Generating forecast...</p>
+                </div>
+                
+                <div id="goalForecastContent" class="d-none">
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h5 class="card-title" id="forecastGoalName">Goal Name</h5>
+                                    <div class="row">
+                                        <div class="col-md-4 text-center">
+                                            <p class="text-muted mb-1">Target Amount</p>
+                                            <h4 id="forecastTargetAmount">₹0.00</h4>
+                                        </div>
+                                        <div class="col-md-4 text-center">
+                                            <p class="text-muted mb-1">Current Progress</p>
+                                            <h4 id="forecastCurrentAmount">₹0.00</h4>
+                                        </div>
+                                        <div class="col-md-4 text-center">
+                                            <p class="text-muted mb-1">Target Date</p>
+                                            <h4 id="forecastTargetDate">-</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Forecast Summary</h5>
+                                    <p class="card-text" id="forecastSummary"></p>
+                                    
+                                    <div class="alert" id="forecastAlert" role="alert"></div>
+                                    
+                                    <div class="row text-center">
+                                        <div class="col-6">
+                                            <p class="text-muted mb-1">Estimated Completion</p>
+                                            <h4 id="forecastCompletionDate">-</h4>
+                                        </div>
+                                        <div class="col-6">
+                                            <p class="text-muted mb-1">Monthly Needed</p>
+                                            <h4 id="forecastMonthlyAmount">₹0.00</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <canvas id="goalProjectionChart" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Recommendations</h5>
+                            <ul class="list-group list-group-flush" id="forecastRecommendations">
+                                <li class="list-group-item text-center">
+                                    <p class="text-muted">No recommendations available.</p>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Savings Projection Chart
+    const savingsCtx = document.getElementById('savingsProjectionChart').getContext('2d');
+    const savingsProjectionChart = new Chart(savingsCtx, {
+        type: 'line',
+        data: {
+            labels: {{ forecast_months|default:"[]"|safe }},
+            datasets: [
+                {
+                    label: 'Projected Savings',
+                    data: {{ forecast_savings|default:"[]"|safe }},
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    borderWidth: 2,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                yAxes: [{
+                    ticks: {
+                        beginAtZero: true,
+                        callback: function(value) {
+                            return '₹' + value.toLocaleString();
+                        }
+                    }
+                }]
+            }
+        }
+    });
+    
+    // Goal Timeline Chart
+    const timelineCtx = document.getElementById('goalTimelineChart').getContext('2d');
+    const goalTimelineChart = new Chart(timelineCtx, {
+        type: 'horizontalBar',
+        data: {
+            labels: {{ goal_names|default:"[]"|safe }},
+            datasets: [
+                {
+                    label: 'Current Progress',
+                    data: {{ goal_progress|default:"[]"|safe }},
+                    backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Remaining',
+                    data: {{ goal_remaining|default:"[]"|safe }},
+                    backgroundColor: 'rgba(220, 220, 220, 0.8)',
+                    borderColor: 'rgba(220, 220, 220, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                xAxes: [{
+                    stacked: true,
+                    ticks: {
+                        beginAtZero: true,
+                        callback: function(value) {
+                            return '₹' + value.toLocaleString();
+                        }
+                    }
+                }],
+                yAxes: [{
+                    stacked: true
+                }]
+            }
+        }
+    });
+    
+    // Goal Forecast Modal
+    const viewForecastButtons = document.querySelectorAll('.view-forecast');
+    const goalForecastModal = document.getElementById('goalForecastModal');
+    const goalForecastLoading = document.getElementById('goalForecastLoading');
+    const goalForecastContent = document.getElementById('goalForecastContent');
+    
+    viewForecastButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const goalId = this.dataset.goalId;
+            
+            // Show modal and loading state
+            $('#goalForecastModal').modal('show');
+            goalForecastLoading.classList.remove('d-none');
+            goalForecastContent.classList.add('d-none');
+            
+            // Simulate API call to get goal forecast (replace with actual fetch)
+            setTimeout(function() {
+                goalForecastLoading.classList.add('d-none');
+                goalForecastContent.classList.remove('d-none');
+                
+                // Update forecast with dummy data (replace with actual API data)
+                document.getElementById('forecastGoalName').textContent = "Emergency Fund";
+                document.getElementById('forecastTargetAmount').textContent = "₹50,000.00";
+                document.getElementById('forecastCurrentAmount').textContent = "₹25,000.00";
+                document.getElementById('forecastTargetDate').textContent = "Dec 31, 2023";
+                document.getElementById('forecastCompletionDate').textContent = "Mar 15, 2024";
+                document.getElementById('forecastMonthlyAmount').textContent = "₹5,000.00";
+                
+                const forecastAlert = document.getElementById('forecastAlert');
+                forecastAlert.className = "alert alert-warning";
+                forecastAlert.textContent = "Based on your current saving rate, you're projected to achieve this goal 2.5 months after your target date.";
+                
+                document.getElementById('forecastSummary').textContent = "You're saving approximately ₹3,000 per month towards this goal. To reach your target by the deadline, you need to increase your monthly contribution.";
+                
+                // Load recommendations
+                const recommendations = [
+                    "Increase your monthly contribution by ₹2,000 to meet your deadline.",
+                    "Consider decreasing your dining out expenses to free up more for savings.",
+                    "Setting up automatic transfers can help ensure consistent progress."
+                ];
+                
+                const recommendationsList = document.getElementById('forecastRecommendations');
+                if (recommendations.length > 0) {
+                    let html = '';
+                    recommendations.forEach(rec => {
+                        html += `<li class="list-group-item">
+                            <i class="fas fa-check-circle text-success mr-2"></i> ${rec}
+                        </li>`;
+                    });
+                    recommendationsList.innerHTML = html;
+                }
+                
+                // Create projection chart
+                const projectionCtx = document.getElementById('goalProjectionChart').getContext('2d');
+                
+                if (window.goalProjectionChart) {
+                    window.goalProjectionChart.destroy();
+                }
+                
+                window.goalProjectionChart = new Chart(projectionCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                        datasets: [
+                            {
+                                label: 'Projected Growth',
+                                data: [25000, 28000, 31000, 34000, 37000, 40000],
+                                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                                borderColor: 'rgba(0, 123, 255, 1)',
+                                borderWidth: 2,
+                                fill: true
+                            },
+                            {
+                                label: 'Target Path',
+                                data: [25000, 30000, 35000, 40000, 45000, 50000],
+                                backgroundColor: 'rgba(220, 220, 220, 0.1)',
+                                borderColor: 'rgba(220, 220, 220, 1)',
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                fill: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        title: {
+                            display: true,
+                            text: 'Goal Projection'
+                        }
+                    }
+                });
+            }, 1000);
+        });
+    });
+});
+</script>
+{% endblock %} 

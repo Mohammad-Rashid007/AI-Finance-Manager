@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Categories - AI Finance Manager{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Categories</h1>
+        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addCategoryModal">
+            <i class="fas fa-plus mr-1"></i> Add Category
+        </button>
+    </div>
+
+    {% if messages %}
+    <div class="messages mb-4">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- User Categories -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Your Categories</h5>
+                </div>
+                <div class="card-body">
+                    {% if user_categories %}
+                    <div class="list-group list-group-flush">
+                        {% for category in user_categories %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0">{{ category.name }}</h6>
+                                <small class="text-muted">{{ category.type|title }}</small>
+                            </div>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-sm btn-outline-primary edit-category" 
+                                        data-id="{{ category.id }}"
+                                        data-name="{{ category.name }}"
+                                        data-type="{{ category.type }}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger delete-category"
+                                        data-id="{{ category.id }}"
+                                        data-name="{{ category.name }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-center py-3 mb-0">You haven't created any categories yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Default Categories -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Default Categories</h5>
+                </div>
+                <div class="card-body">
+                    {% if default_categories %}
+                    <div class="list-group list-group-flush">
+                        {% for category in default_categories %}
+                        <div class="list-group-item">
+                            <h6 class="mb-0">{{ category.name }}</h6>
+                            <small class="text-muted">{{ category.type|title }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-center py-3 mb-0">No default categories available.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Category Modal -->
+<div class="modal fade" id="addCategoryModal" tabindex="-1" role="dialog" aria-labelledby="addCategoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addCategoryModalLabel">Add New Category</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="categoryForm" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" id="categoryId" name="id">
+                    <div class="form-group">
+                        <label for="categoryName">Category Name</label>
+                        <input type="text" class="form-control" id="categoryName" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="categoryType">Category Type</label>
+                        <select class="form-control" id="categoryType" name="type" required>
+                            <option value="">Select Type</option>
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveCategoryBtn">Save Category</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Category Modal -->
+<div class="modal fade" id="deleteCategoryModal" tabindex="-1" role="dialog" aria-labelledby="deleteCategoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteCategoryModalLabel">Delete Category</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the category "<span id="deleteCategoryName"></span>"?</p>
+                <p class="text-danger mb-0">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="deleteCategoryBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Define all functions first
+function showError(message) {
+    alert(message);
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function saveCategory() {
+    const name = document.getElementById('categoryName').value.trim();
+    const type = document.getElementById('categoryType').value;
+    const csrfToken = getCookie('csrftoken');
+
+    console.log('Saving category:', { name, type, csrfToken });  // Debug log
+
+    if (!name) {
+        showError('Please enter a category name');
+        return;
+    }
+
+    if (!type) {
+        showError('Please select a category type');
+        return;
+    }
+
+    if (!csrfToken) {
+        console.error('CSRF token not found');
+        showError('Security token not found. Please refresh the page and try again.');
+        return;
+    }
+
+    const url = currentCategoryId 
+        ? `/financial/categories/${currentCategoryId}/edit/`
+        : '/financial/categories/create/';
+
+    console.log('Request URL:', url);  // Debug log
+
+    const requestData = {
+        name: name,
+        type: type
+    };
+
+    console.log('Request data:', requestData);  // Debug log
+
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(requestData),
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        console.log('Response status:', response.status);  // Debug log
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Response data:', data);  // Debug log
+        if (data.success) {
+            window.location.reload();
+        } else {
+            showError(data.error || 'Failed to save category');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showError('An error occurred while saving the category');
+    });
+}
+
+function deleteCategory() {
+    if (!currentCategoryId) {
+        showError('No category selected for deletion');
+        return;
+    }
+
+    const csrfToken = getCookie('csrftoken');
+    
+    if (!csrfToken) {
+        console.error('CSRF token not found');
+        showError('Security token not found. Please refresh the page and try again.');
+        return;
+    }
+
+    fetch(`/financial/categories/${currentCategoryId}/delete/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            showError(data.error || 'Failed to delete category');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showError('An error occurred while deleting the category');
+    });
+}
+
+// Initialize variables
+let currentCategoryId = null;
+
+// Set up event listeners when the DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Save category button
+    document.getElementById('saveCategoryBtn').addEventListener('click', saveCategory);
+    
+    // Delete category button
+    document.getElementById('deleteCategoryBtn').addEventListener('click', deleteCategory);
+
+    // Edit category button click
+    document.querySelectorAll('.edit-category').forEach(button => {
+        button.addEventListener('click', function() {
+            currentCategoryId = this.dataset.id;
+            document.getElementById('categoryName').value = this.dataset.name;
+            document.getElementById('categoryType').value = this.dataset.type;
+            document.getElementById('addCategoryModalLabel').textContent = 'Edit Category';
+            $('#addCategoryModal').modal('show');
+        });
+    });
+
+    // Delete category button click
+    document.querySelectorAll('.delete-category').forEach(button => {
+        button.addEventListener('click', function() {
+            currentCategoryId = this.dataset.id;
+            document.getElementById('deleteCategoryName').textContent = this.dataset.name;
+            $('#deleteCategoryModal').modal('show');
+        });
+    });
+
+    // Reset form when add category button is clicked
+    document.querySelector('[data-target="#addCategoryModal"]').addEventListener('click', function() {
+        currentCategoryId = null;
+        document.getElementById('categoryForm').reset();
+        document.getElementById('addCategoryModalLabel').textContent = 'Add New Category';
+    });
+
+    // Reset form when modal is closed
+    $('#addCategoryModal').on('hidden.bs.modal', function() {
+        currentCategoryId = null;
+        document.getElementById('categoryForm').reset();
+        document.getElementById('addCategoryModalLabel').textContent = 'Add New Category';
+    });
+});
+</script>
+{% endblock %} 

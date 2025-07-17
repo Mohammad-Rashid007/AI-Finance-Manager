@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Edit Profile - AI Finance Manager{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h1 class="h3 mb-0">Edit Profile</h1>
+                        <a href="{% url 'financial:user_profile' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left mr-1"></i>Back to Profile
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                    <div class="messages mb-4">
+                        {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <form method="post" enctype="multipart/form-data" id="profileForm">
+                        {% csrf_token %}
+                        
+                        <!-- Profile Picture Section -->
+                        <div class="text-center mb-4">
+                            <div class="profile-picture-container position-relative d-inline-block">
+                                {% if profile.profile_picture %}
+                                <img src="{{ profile.profile_picture.url }}" alt="Current Profile Picture" 
+                                     class="img-fluid rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                                {% else %}
+                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" 
+                                     style="width: 150px; height: 150px;">
+                                    <i class="fas fa-user fa-4x text-muted"></i>
+                                </div>
+                                {% endif %}
+                                <div class="profile-picture-overlay">
+                                    <label for="{{ form.profile_picture.id_for_label }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-camera mr-1"></i>Change Photo
+                                    </label>
+                                </div>
+                            </div>
+                            {{ form.profile_picture|as_crispy_field }}
+                        </div>
+
+                        <!-- User Account Information -->
+                        <h5 class="mb-3">Account Information</h5>
+                        <div class="row">
+                            <div class="col-md-12 mb-2">
+                                <p class="text-muted small">Username: <strong>{{ profile.user.username }}</strong> (Cannot be changed)</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Personal Information -->
+                        <h5 class="mb-3">Personal Information</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.first_name|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.last_name|as_crispy_field }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.email|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.phone|as_crispy_field }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.birth_date|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.default_currency|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        <!-- Address -->
+                        <h5 class="mb-3 mt-4">Address</h5>
+                        {{ form.address|as_crispy_field }}
+
+                        <!-- AI Settings -->
+                        <h5 class="mb-3 mt-4">AI Features Settings</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.enable_ai_insights|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.enable_ai_categorization|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save mr-1"></i>Save Changes
+                            </button>
+                            <a href="{% url 'financial:user_profile' %}" class="btn btn-light ml-2">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Hide the file input and show custom button
+    const fileInput = document.getElementById('{{ form.profile_picture.id_for_label }}');
+    if (fileInput) {
+        fileInput.style.display = 'none';
+        
+        // Preview image before upload
+        fileInput.addEventListener('change', function(e) {
+            if (e.target.files && e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const profileContainer = document.querySelector('.profile-picture-container');
+                    const existingImg = profileContainer.querySelector('img');
+                    const existingDiv = profileContainer.querySelector('div.bg-light');
+                    
+                    if (existingImg) {
+                        existingImg.src = e.target.result;
+                    } else if (existingDiv) {
+                        existingDiv.remove();
+                        const newImg = document.createElement('img');
+                        newImg.src = e.target.result;
+                        newImg.alt = 'Profile Picture';
+                        newImg.className = 'img-fluid rounded-circle mb-3';
+                        newImg.style = 'width: 150px; height: 150px; object-fit: cover;';
+                        profileContainer.insertBefore(newImg, profileContainer.firstChild);
+                    }
+                }
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+    }
+});
+</script>
+
+<style>
+.profile-picture-container {
+    position: relative;
+    display: inline-block;
+}
+
+.profile-picture-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 1rem;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.profile-picture-container:hover .profile-picture-overlay {
+    opacity: 1;
+}
+</style>
+{% endblock %} 

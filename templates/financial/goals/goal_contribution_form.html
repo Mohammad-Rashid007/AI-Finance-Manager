@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+
+{% block title %}Add Contribution - AI Finance Manager{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">Add Contribution to "{{ goal.name }}"</h1>
+    <a href="{% url 'financial:savings_goal_detail' goal.id %}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left mr-1"></i> Back to Goal
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="form-group">
+                        <label for="id_amount">Contribution Amount</label>
+                        <div class="input-group">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">₹</span>
+                            </div>
+                            <input type="number" name="amount" id="id_amount" class="form-control" required step="0.01" min="0.01">
+                        </div>
+                        <small class="form-text text-muted">Enter the amount you want to contribute to this goal.</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_date">Contribution Date</label>
+                        <input type="date" name="date" id="id_date" class="form-control" value="{{ today|date:'Y-m-d' }}">
+                        <small class="form-text text-muted">Date of the contribution (defaults to today).</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_account">Withdraw from Account (optional)</label>
+                        <select name="account" id="id_account" class="form-control">
+                            <option value="">-- No account withdrawal --</option>
+                            {% for account in accounts %}
+                            <option value="{{ account.id }}">{{ account.name }} (Balance: ₹{{ account.balance|floatformat:2 }})</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">
+                            If selected, a transaction will be created and the amount will be deducted from this account.
+                        </small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_notes">Notes (optional)</label>
+                        <textarea name="notes" id="id_notes" class="form-control" rows="3"></textarea>
+                        <small class="form-text text-muted">Any additional information about this contribution.</small>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-info-circle mr-3 fa-2x"></i>
+                            <div>
+                                <strong>Goal Progress:</strong>
+                                <div>Current Amount: ₹{{ goal.current_amount|floatformat:2 }} of ₹{{ goal.target_amount|floatformat:2 }}</div>
+                                <div class="progress mt-2" style="height: 10px;">
+                                    <div class="progress-bar bg-success" role="progressbar" 
+                                        style="width: {{ goal.progress_percentage }}%;" 
+                                        aria-valuenow="{{ goal.progress_percentage }}" 
+                                        aria-valuemin="0" 
+                                        aria-valuemax="100">
+                                    </div>
+                                </div>
+                                <small class="text-muted mt-1 d-block">
+                                    {{ goal.progress_percentage|floatformat:1 }}% complete
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-right">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle mr-1"></i> Add Contribution
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize date picker
+        flatpickr("#id_date", {
+            dateFormat: "Y-m-d"
+        });
+
+        const amountInput = document.getElementById('id_amount');
+        const progressBar = document.querySelector('.progress-bar');
+        const progressText = document.querySelector('small.text-muted.mt-1');
+        
+        // Get initial values
+        const currentAmount = {{ goal.current_amount }};
+        const targetAmount = {{ goal.target_amount }};
+        
+        amountInput.addEventListener('input', function() {
+            const contributionAmount = parseFloat(this.value) || 0;
+            const newAmount = currentAmount + contributionAmount;
+            const newPercentage = Math.min((newAmount / targetAmount) * 100, 100);
+            
+            // Update progress bar
+            progressBar.style.width = newPercentage + '%';
+            progressBar.setAttribute('aria-valuenow', newPercentage);
+            
+            // Update text
+            progressText.textContent = newPercentage.toFixed(1) + '% complete';
+            
+            // Change color if goal would be completed
+            if (newAmount >= targetAmount) {
+                progressBar.classList.remove('bg-success');
+                progressBar.classList.add('bg-primary');
+            } else {
+                progressBar.classList.remove('bg-primary');
+                progressBar.classList.add('bg-success');
+            }
+        });
+    });
+</script>
+{% endblock %} 
